@@ -25,9 +25,12 @@ class SimpleSpider(Spider):
         #defaul 'title' or h1
         for elem in grab.doc.select('//h1[@class="b-topic__title"]'):
             print(elem._node.text_content())
-        #default '//div/p'
+        #default '//div/p' для получения ссылки '//div[@class="b-text clearfix"]//p/a/@href'
+        # '//div[@class="b-text clearfix"]//p/a[@class="source"]/@href'
         for elem in grab.doc.select('//div[@class="b-text clearfix"]//p'):
             print(elem._node.text_content())
+        for elem in grab.doc.select('//div[@class="b-text clearfix"]//p/a[@class="source"]/@href'):
+            print(elem._node)
 
 
 if __name__ == '__main__':
