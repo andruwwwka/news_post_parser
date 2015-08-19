@@ -31,7 +31,7 @@ class SimpleSpider(Spider):
         # Текст
         for elem in grab.doc.select('//div[@class="b-text clearfix"]//p'):
             print(elem._node.text_content())
-            # Можно внутри прямо переберать текущий элемент с использованием elem.select('//div[@class="b-text clearfix"]//p/a')
+            # Можно внутри прямо переберать текущий элемент с использованием elem.select('//div[@class="b-text clearfix"]//p/a[@class="source"]')
         # Ссылка
         for elem in grab.doc.select('//div[@class="b-text clearfix"]//p/a[@class="source"]/@href'):
             print(elem._node)
