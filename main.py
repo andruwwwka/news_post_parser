@@ -4,12 +4,14 @@ from grab.spider import Spider, Task
 
 default_selectors_config = {
     'default': {
-        'title': '//title', #gazeta //h1[@class="b-topic__title"]
-        'text': '//div//p', #gazeta //div[@class="b-text clearfix"]//p
-        'link_text': '/a', #gazeta //div[@class="b-text clearfix"]//p/a
-        'link': '/@href', #gazeta //div[@class="b-text clearfix"]//p/a/@href
+        'title': '//title',
+        'text': '//div//p',
+        'link_text': '/a',
+        'link': '/@href',
     }
 }
+
+cur_dir = os.path.abspath(os.curdir)
 
 
 class RegexValidator(object):
@@ -47,7 +49,7 @@ class FileWriter(object):
 
     def __init__(self, url):
         self.url = url
-        filedir = '{}/{}'.format(os.path.abspath(os.curdir), self.url[self.url.index('://')+3:])
+        filedir = '{}/{}'.format(cur_dir, self.url[self.url.index('://')+3:])
         if filedir[-1] == '/':
             filedir = filedir[:-1]
         file_path = filedir[:filedir.rindex('/')]
@@ -99,14 +101,12 @@ class SimpleSpider(Spider):
         Process `self.initial_urls` list and `self.task_generator`
         method.  Generate first portion of tasks.
         """
-
         if self.initial_urls:
             for url in self.initial_urls:
                 if not self.url_validator.is_valid(url):
                     print('Could not resolve relative URL because url [{}] is not valid.\n'.format(url))
                     continue
                 self.add_task(Task('initial', url=url))
-
         self.task_generator_object = self.task_generator()
         self.task_generator_enabled = True
         # Initial call to task generator before spider has started working
@@ -144,7 +144,12 @@ class SimpleSpider(Spider):
 
 if __name__ == '__main__':
     urls = ['http://lenta.ru/news/2015/08/18/transgender_hired/', 'http://news.rambler.ru/science/31092820/']
-    selectors_config = default_selectors_config
+    settings_path = '{}/settings'.format(cur_dir)
+    if os.path.exists(settings_path):
+        settings_file = open(settings_path, 'r')
+        selectors_config = eval(settings_file.read())
+        settings_file.close()
+    else:
+        selectors_config = default_selectors_config
     bot = SimpleSpider(urls=urls, selectors_config=selectors_config)
     bot.run()
-    print(bot.render_stats())
