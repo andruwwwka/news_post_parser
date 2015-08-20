@@ -1,4 +1,5 @@
 import re
+import os
 from grab.spider import Spider, Task
 
 url_pattern = r'^(?:http|ftp)s?://(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' \
@@ -44,7 +45,12 @@ class UrlValidator(RegexValidator):
 class FileWriter(object):
 
     def __init__(self, url):
-        self.url = url
+        # FixMe наверное надо создавать директории
+        filename = '{}/{}'.format(os.path.abspath(os.curdir), url[url.index('://')+3:])
+        self.file = open(filename, 'w')
+
+    def write(self, value):
+        self.file.write(value)
 
     def close_thread(self):
         self.file.close()
@@ -81,11 +87,12 @@ class SimpleSpider(Spider):
     def task_parse(self, grab, task):
         # Заголовок
         #FixMe Добавить ниже валидацию конфигурации
+        writer = FileWriter(task.url)
         settings_template = self.selectors_config.get(task.url) if task.url in self.selectors_config \
             else default_selectors_config.get('default')
         head_tag = settings_template.get('title')
         for elem in grab.doc.select(head_tag):
-            print(elem._node.text_content())
+            writer.write(elem._node.text_content())
         # Текст
         xpath_param_text = settings_template.get('text')
         xpath_param_link_text = '{}{}'.format(xpath_param_text, settings_template.get('link_text'))
@@ -112,7 +119,8 @@ class SimpleSpider(Spider):
                     line = word
             if line:
                 result += '{}{}'.format('\n', line)
-            print(result)
+            writer.write(result)
+            writer.close_thread()
 
 
 if __name__ == '__main__':
