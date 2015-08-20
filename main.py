@@ -1,30 +1,98 @@
+import re
 from grab.spider import Spider, Task
 
-selectors = {
-    'title': ['//title', ],
-    'article': []
+url_pattern = r'^(?:http|ftp)s?://(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' \
+              r'localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?(?:/?|[/?]\S+)$'
+
+default_selectors_config = {
+    'default': {
+        'title': '//title', #gazeta //h1[@class="b-topic__title"]
+        'text': '//div//p', #gazeta //div[@class="b-text clearfix"]//p
+        'link_text': '/a', #gazeta //div[@class="b-text clearfix"]//p/a
+        'link': '/@href', #gazeta //div[@class="b-text clearfix"]//p/a/@href
+    }
 }
+
+class RegexValidator(object):
+    _pattern = ''
+
+    def __init__(self, pattern=''):
+        self.pattern = pattern
+        self._regex = re.compile(self.pattern, re.IGNORECASE)
+
+    @property
+    def pattern(self):
+        return self._pattern
+
+    @pattern.setter
+    def pattern(self, new_patern):
+        if self.pattern != new_patern:
+            self._pattern = new_patern
+            self._regex = re.compile(self.pattern, re.IGNORECASE)
+
+
+class UrlValidator(RegexValidator):
+
+    def __init__(self, pattern=''):
+        super(UrlValidator, self).__init__(
+            pattern or url_pattern
+        )
+
+    def is_valid(self, url=''):
+        return bool(re.match(self._regex, url))
+
+class FileWriter(object):
+
+    def __init__(self, url):
+        self.url = url
+
+    def close_thread(self):
+        self.file.close()
 
 class SimpleSpider(Spider):
 
     def __init__(self, *args, **kwargs):
         self.initial_urls = kwargs.pop('urls')
+        self.selectors_config = kwargs.pop('selectors_config')
+        self.url_validator = UrlValidator()
         super(SimpleSpider, self).__init__(*args, **kwargs)
+
+    def start_task_generator(self):
+        """
+        Process `self.initial_urls` list and `self.task_generator`
+        method.  Generate first portion of tasks.
+        """
+
+        if self.initial_urls:
+            for url in self.initial_urls:
+                if not self.url_validator.is_valid(url):
+                    print('Could not resolve relative URL because url [{}] is not valid.\n'.format(url))
+                    continue
+                self.add_task(Task('initial', url=url))
+
+        self.task_generator_object = self.task_generator()
+        self.task_generator_enabled = True
+        # Initial call to task generator before spider has started working
+        self.process_task_generator()
 
     def task_initial(self, grab, task):
         yield Task('parse', grab=grab)
 
     def task_parse(self, grab, task):
-        #defaul 'title' or h1
         # Заголовок
-        for elem in grab.doc.select('//h1[@class="b-topic__title"]'):
+        #FixMe Добавить ниже валидацию конфигурации
+        settings_template = self.selectors_config.get(task.url) if task.url in self.selectors_config \
+            else default_selectors_config.get('default')
+        head_tag = settings_template.get('title')
+        for elem in grab.doc.select(head_tag):
             print(elem._node.text_content())
-        #default '//div/p' для получения ссылки '//div[@class="b-text clearfix"]//p/a/@href'
-        # '//div[@class="b-text clearfix"]//p/a[@class="source"]/@href'
         # Текст
-        for elem in grab.doc.select('//div[@class="b-text clearfix"]//p'):
-            url_name_list = elem.select('//div[@class="b-text clearfix"]//p/a').selector_list
-            url_link_list = elem.select('//div[@class="b-text clearfix"]//p/a/@href').selector_list
+        xpath_param_text = settings_template.get('text')
+        xpath_param_link_text = '{}{}'.format(xpath_param_text, settings_template.get('link_text'))
+        xpath_param_link = '{}{}'.format(xpath_param_link_text, settings_template.get('link'))
+        for elem in grab.doc.select(xpath_param_text):
+            url_name_list = elem.select(xpath_param_link_text).selector_list
+            url_link_list = elem.select(xpath_param_link).selector_list
             maping_url = zip(url_name_list, url_link_list)
             article_element = elem._node.text_content()
             for name, link in maping_url:
@@ -40,15 +108,16 @@ class SimpleSpider(Spider):
                     line += (' ' if line else '') + word
                 else:
                     if line:
-                        result += ''.join(['\n', line])
+                        result += '{}{}'.format('\n', line)
                     line = word
             if line:
-                result += ''.join(['\n', line])
+                result += '{}{}'.format('\n', line)
             print(result)
 
 
 if __name__ == '__main__':
-    urls = ['http://lenta.ru/news/2015/08/18/transgender_hired/', ]
-    bot = SimpleSpider(urls=urls)
+    urls = ['http://lenta.ru/news/2015/08/18/transgender_hired/', 'http://news.rambler.ru/science/31092820/']
+    selectors_config = default_selectors_config
+    bot = SimpleSpider(urls=urls, selectors_config=selectors_config)
     bot.run()
     print(bot.render_stats())
