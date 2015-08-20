@@ -1,5 +1,6 @@
 import re
 import os
+import sys
 from grab.spider import Spider, Task
 
 default_selectors_config = {
@@ -163,7 +164,9 @@ class SimpleSpider(Spider):
 
 
 if __name__ == '__main__':
-    urls = ['http://lenta.ru/news/2015/08/18/transgender_hired/', 'http://news.rambler.ru/science/31092820/']
+    if len(sys.argv) == 1:
+        sys.exit('Parser takes at least 1 argument (0 given)')
+    urls = sys.argv[1:]
     settings_path = '{}/settings'.format(cur_dir)
     if os.path.exists(settings_path):
         settings_file = open(settings_path, 'r')
