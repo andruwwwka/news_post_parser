@@ -56,14 +56,20 @@ class FileWriter(object):
         if not os.path.exists(file_path):
             os.makedirs(file_path)
         file_name = '{}.txt'.format(filedir.split('/')[-1].split('.')[0])
-        self.file = open('{}/{}'.format(file_path, file_name), 'w')
+        self.result_path = '{}/{}'.format(file_path, file_name)
+        self.was_writen = os.path.exists(self.result_path)
+        if not self.was_writen:
+            self.file = open(self.result_path, 'w')
 
     def write(self, value):
         self.file.write('{}{}'.format(value, '\n'))
 
-    def close_thread(self):
+    def destroy(self):
+        if self.was_writen:
+            print('Url already {} was parsed to file {}'.format(self.url, self.result_path))
+            return
         self.file.close()
-        print('Url {} was parsed to file {}'.format(self.url, self.file.name))
+        print('Url {} was parsed to file {}'.format(self.url, self.result_path))
 
 
 class FormatTextBlock(object):
@@ -116,30 +122,29 @@ class SimpleSpider(Spider):
         yield Task('parse', grab=grab)
 
     def task_parse(self, grab, task):
-        # Заголовок
         #FixMe Добавить ниже валидацию конфигурации
         writer = FileWriter(task.url)
-        settings_template = self.selectors_config.get(task.url) if task.url in self.selectors_config \
-            else default_selectors_config.get('default')
-        head_tag = settings_template.get('title')
-        for elem in grab.doc.select(head_tag):
-            writer.write(elem._node.text_content())
-        # Текст
-        xpath_param_text = settings_template.get('text')
-        xpath_param_link_text = '{}{}'.format(xpath_param_text, settings_template.get('link_text'))
-        xpath_param_link = '{}{}'.format(xpath_param_link_text, settings_template.get('link'))
-        for elem in grab.doc.select(xpath_param_text):
-            url_name_list = elem.select(xpath_param_link_text).selector_list
-            url_link_list = elem.select(xpath_param_link).selector_list
-            maping_url = zip(url_name_list, url_link_list)
-            article_element = elem._node.text_content()
-            for name, link in maping_url:
-                if name.text() in article_element:
-                    name_index = article_element.index(name.text()) + len(name.text())
-                    article_element = '{}[{}]{}'.format(article_element[:name_index], link.text(), article_element[name_index:])
-            format_maker = FormatTextBlock(article_element)
-            writer.write(format_maker.format())
-        writer.close_thread()
+        if not writer.was_writen:
+            settings_template = self.selectors_config.get(task.url) if task.url in self.selectors_config \
+                else default_selectors_config.get('default')
+            head_tag = settings_template.get('title')
+            for elem in grab.doc.select(head_tag):
+                writer.write(elem._node.text_content())
+            xpath_param_text = settings_template.get('text')
+            xpath_param_link_text = '{}{}'.format(xpath_param_text, settings_template.get('link_text'))
+            xpath_param_link = '{}{}'.format(xpath_param_link_text, settings_template.get('link'))
+            for elem in grab.doc.select(xpath_param_text):
+                url_name_list = elem.select(xpath_param_link_text).selector_list
+                url_link_list = elem.select(xpath_param_link).selector_list
+                maping_url = zip(url_name_list, url_link_list)
+                article_element = elem._node.text_content()
+                for name, link in maping_url:
+                    if name.text() in article_element:
+                        name_index = article_element.index(name.text()) + len(name.text())
+                        article_element = '{}[{}]{}'.format(article_element[:name_index], link.text(), article_element[name_index:])
+                format_maker = FormatTextBlock(article_element)
+                writer.write(format_maker.format())
+        writer.destroy()
 
 
 if __name__ == '__main__':
