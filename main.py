@@ -1,9 +1,4 @@
-from grab import Grab
 from grab.spider import Spider, Task
-
-# g = Grab()
-# g.go('http://lenta.ru/news/2015/08/18/transgender_hired/')
-# a = 1
 
 selectors = {
     'title': ['//title', ],
@@ -17,8 +12,6 @@ class SimpleSpider(Spider):
         super(SimpleSpider, self).__init__(*args, **kwargs)
 
     def task_initial(self, grab, task):
-        # grab.doc.set_input('text', u'ночь')
-        # grab.doc.submit(make_request=False)
         yield Task('parse', grab=grab)
 
     def task_parse(self, grab, task):
@@ -30,14 +23,28 @@ class SimpleSpider(Spider):
         # '//div[@class="b-text clearfix"]//p/a[@class="source"]/@href'
         # Текст
         for elem in grab.doc.select('//div[@class="b-text clearfix"]//p'):
-            print(elem._node.text_content())
-            # Можно внутри прямо переберать текущий элемент с использованием elem.select('//div[@class="b-text clearfix"]//p/a[@class="source"]')
-        # Ссылка
-        for elem in grab.doc.select('//div[@class="b-text clearfix"]//p/a[@class="source"]/@href'):
-            print(elem._node)
-        # Текст в ссылке
-        for elem in grab.doc.select('//div[@class="b-text clearfix"]//p/a[@class="source"]'):
-            print(elem._node.text_content())
+            url_name_list = elem.select('//div[@class="b-text clearfix"]//p/a').selector_list
+            url_link_list = elem.select('//div[@class="b-text clearfix"]//p/a/@href').selector_list
+            maping_url = zip(url_name_list, url_link_list)
+            article_element = elem._node.text_content()
+            for name, link in maping_url:
+                if name.text() in article_element:
+                    name_index = article_element.index(name.text()) + len(name.text())
+                    article_element = '{}[{}]{}'.format(article_element[:name_index], link.text(), article_element[name_index:])
+            # FixMe Вынести в отдельный метод
+            words = article_element.split()
+            result = ''
+            line = ''
+            for word in words:
+                if len(line) + len(word) < 80:
+                    line += (' ' if line else '') + word
+                else:
+                    if line:
+                        result += ''.join(['\n', line])
+                    line = word
+            if line:
+                result += ''.join(['\n', line])
+            print(result)
 
 
 if __name__ == '__main__':
