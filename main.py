@@ -2,11 +2,6 @@ import re
 import os
 from grab.spider import Spider, Task
 
-url_pattern = r'^(?:http|ftp)s?://(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' \
-              r'localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?(?:/?|[/?]\S+)$'
-
-max_items_in_string = 80
-
 default_selectors_config = {
     'default': {
         'title': '//title', #gazeta //h1[@class="b-topic__title"]
@@ -15,6 +10,7 @@ default_selectors_config = {
         'link': '/@href', #gazeta //div[@class="b-text clearfix"]//p/a/@href
     }
 }
+
 
 class RegexValidator(object):
     _pattern = ''
@@ -35,25 +31,29 @@ class RegexValidator(object):
 
 
 class UrlValidator(RegexValidator):
+    url_pattern = r'^(?:http|ftp)s?://(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|' \
+                  r'[A-Z0-9-]{2,}\.?)|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?(?:/?|[/?]\S+)$'
 
     def __init__(self, pattern=''):
         super(UrlValidator, self).__init__(
-            pattern or url_pattern
+            pattern or self.url_pattern
         )
 
     def is_valid(self, url=''):
         return bool(re.match(self._regex, url))
 
+
 class FileWriter(object):
 
     def __init__(self, url):
-        # FixMe наверное надо создавать директории
-        filedir = '{}/{}'.format(os.path.abspath(os.curdir), url[url.index('://')+3:])
+        self.url = url
+        filedir = '{}/{}'.format(os.path.abspath(os.curdir), self.url[self.url.index('://')+3:])
         if filedir[-1] == '/':
             filedir = filedir[:-1]
         file_path = filedir[:filedir.rindex('/')]
-        os.makedirs(file_path)
-        file_name = filedir.split('/')[-1].split('.')[0]
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        file_name = '{}.txt'.format(filedir.split('/')[-1].split('.')[0])
         self.file = open('{}/{}'.format(file_path, file_name), 'w')
 
     def write(self, value):
@@ -61,6 +61,30 @@ class FileWriter(object):
 
     def close_thread(self):
         self.file.close()
+        print('Url {} was parsed to file {}'.format(self.url, self.file.name))
+
+
+class FormatTextBlock(object):
+    max_items_in_string = 80
+
+    def __init__(self, block):
+        self.block = block
+
+    def format(self):
+        words = self.block.split()
+        result = ''
+        line = ''
+        for word in words:
+            if len(line) + len(word) < self.max_items_in_string:
+                line += (' ' if line else '') + word
+            else:
+                if line:
+                    result += '{}{}'.format('\n', line)
+                line = word
+        if line:
+            result += '{}{}'.format('\n', line)
+        return result
+
 
 class SimpleSpider(Spider):
 
@@ -113,20 +137,8 @@ class SimpleSpider(Spider):
                 if name.text() in article_element:
                     name_index = article_element.index(name.text()) + len(name.text())
                     article_element = '{}[{}]{}'.format(article_element[:name_index], link.text(), article_element[name_index:])
-            # FixMe Вынести в отдельный метод
-            words = article_element.split()
-            result = ''
-            line = ''
-            for word in words:
-                if len(line) + len(word) < max_items_in_string:
-                    line += (' ' if line else '') + word
-                else:
-                    if line:
-                        result += '{}{}'.format('\n', line)
-                    line = word
-            if line:
-                result += '{}{}'.format('\n', line)
-            writer.write(result)
+            format_maker = FormatTextBlock(article_element)
+            writer.write(format_maker.format())
         writer.close_thread()
 
 
