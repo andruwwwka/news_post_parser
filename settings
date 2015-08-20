@@ -1,11 +1,9 @@
-[
-  {
-    'http://lenta.ru/news/2015/08/18/transgender_hired/':
-            {
-              'title': 'h1[@class="b-topic__title"]', 
-              'text': 'div[@class="b-text clearfix"]//p', 
-              'link_text': 'div[@class="b-text clearfix"]//p/a', 
-              'link': 'div[@class="b-text clearfix"]//p/a/@href',
-            },
-  }
-]
+{
+'http://lenta.ru/news/2015/08/18/transgender_hired/':
+        {
+          'title': '//h1[@class="b-topic__title"]',
+          'text': '//div[@class="b-text clearfix"]//p',
+          'link_text': '//div[@class="b-text clearfix"]//p/a',
+          'link': '//div[@class="b-text clearfix"]//p/a/@href',
+        },
+}

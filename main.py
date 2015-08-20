@@ -94,6 +94,21 @@ class FormatTextBlock(object):
         return result
 
 
+class SelectorValidator(object):
+
+    def __init__(self, selector, url):
+        self.selector = selector
+        self.url = url
+
+    def is_valid(self):
+        if self.url in self.selector:
+            for config in ['title', 'text', 'link_text', 'link']:
+                if not config in self.selector[self.url] or not self.selector[self.url][config]:
+                    return False
+            return True
+        return False
+
+
 class SimpleSpider(Spider):
 
     def __init__(self, *args, **kwargs):
@@ -122,10 +137,10 @@ class SimpleSpider(Spider):
         yield Task('parse', grab=grab)
 
     def task_parse(self, grab, task):
-        #FixMe Добавить ниже валидацию конфигурации
         writer = FileWriter(task.url)
         if not writer.was_writen:
-            settings_template = self.selectors_config.get(task.url) if task.url in self.selectors_config \
+            validator = SelectorValidator(url=task.url, selector=self.selectors_config)
+            settings_template = self.selectors_config.get(task.url) if validator.is_valid() \
                 else default_selectors_config.get('default')
             head_tag = settings_template.get('title')
             for elem in grab.doc.select(head_tag):
