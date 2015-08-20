@@ -5,6 +5,8 @@ from grab.spider import Spider, Task
 url_pattern = r'^(?:http|ftp)s?://(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' \
               r'localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?(?:/?|[/?]\S+)$'
 
+max_items_in_string = 80
+
 default_selectors_config = {
     'default': {
         'title': '//title', #gazeta //h1[@class="b-topic__title"]
@@ -46,11 +48,16 @@ class FileWriter(object):
 
     def __init__(self, url):
         # FixMe наверное надо создавать директории
-        filename = '{}/{}'.format(os.path.abspath(os.curdir), url[url.index('://')+3:])
-        self.file = open(filename, 'w')
+        filedir = '{}/{}'.format(os.path.abspath(os.curdir), url[url.index('://')+3:])
+        if filedir[-1] == '/':
+            filedir = filedir[:-1]
+        file_path = filedir[:filedir.rindex('/')]
+        os.makedirs(file_path)
+        file_name = filedir.split('/')[-1].split('.')[0]
+        self.file = open('{}/{}'.format(file_path, file_name), 'w')
 
     def write(self, value):
-        self.file.write(value)
+        self.file.write('{}{}'.format(value, '\n'))
 
     def close_thread(self):
         self.file.close()
@@ -111,7 +118,7 @@ class SimpleSpider(Spider):
             result = ''
             line = ''
             for word in words:
-                if len(line) + len(word) < 80:
+                if len(line) + len(word) < max_items_in_string:
                     line += (' ' if line else '') + word
                 else:
                     if line:
@@ -120,7 +127,7 @@ class SimpleSpider(Spider):
             if line:
                 result += '{}{}'.format('\n', line)
             writer.write(result)
-            writer.close_thread()
+        writer.close_thread()
 
 
 if __name__ == '__main__':
