@@ -140,8 +140,9 @@ class SimpleSpider(Spider):
     def task_parse(self, grab, task):
         writer = FileWriter(task.url)
         if not writer.was_writen:
-            validator = SelectorValidator(url=task.url, selector=self.selectors_config)
-            settings_template = self.selectors_config.get(task.url) if validator.is_valid() \
+            site = task.url.split('/')[2]
+            validator = SelectorValidator(url=site, selector=self.selectors_config)
+            settings_template = self.selectors_config.get(site) if validator.is_valid() \
                 else default_selectors_config.get('default')
             head_tag = settings_template.get('title')
             for elem in grab.doc.select(head_tag):
