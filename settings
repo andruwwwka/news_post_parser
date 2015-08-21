@@ -1,5 +1,5 @@
 {
-'http://lenta.ru/news/2015/08/18/transgender_hired/':
+'lenta.ru':
         {
           'title': '//h1[@class="b-topic__title"]',
           'text': '//div[@class="b-text clearfix"]//p',
